@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Draw a Perfect Circle - Centered Canvas</title>
+<style>
+  body {
+    margin: 0;
+    padding: 0;
+    background: #202124;
+    color: white;
+    font-family: Arial, sans-serif;
+    text-align: center;
+  }
+
+  h1 {
+    margin-top: 30px;
+    font-size: 2em;
+  }
+
+  p {
+    margin-bottom: 10px;
+  }
+
+  /* Container for everything */
+  .main-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* Canvas Section centered below heading */
+  .canvas-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 20px;
+  }
+
+  canvas {
+    border: 2px solid white;
+    background: #111;
+    border-radius: 8px;
+    cursor: crosshair;
+  }
+
+  #score, #highScores {
+    font-size: 1.2em;
+    margin-top: 10px;
+  }
+
+  button {
+    margin-top: 15px;
+    padding: 10px 20px;
+    background: linear-gradient(90deg, red, orange, yellow, green, cyan, blue, violet);
+    border: none;
+    border-radius: 5px;
+    color: white;
+    font-size: 1em;
+    cursor: pointer;
+  }
+
+  button:hover {
+    filter: brightness(1.2);
+  }
+
+  /* Admin Section aligned to the right of the page */
+  .admin-container {
+    display: flex;
+    justify-content: flex-end;
+    width: 90%;
+    margin-top: 20px;
+  }
+
+  .admin-box {
+    border: 2px solid #00bcd4;
+    background: #111;
+    border-radius: 8px;
+    padding: 20px;
+    width: 250px;
+    text-align: center;
+  }
+
+  .admin-box h2 {
+    color: #00e5ff;
+    margin-bottom: 15px;
+  }
+
+  .admin-box input {
+    width: 80%;
+    padding: 8px;
+    font-size: 1em;
+    border: 1px solid #00bcd4;
+    border-radius: 4px;
+    background: #222;
+    color: white;
+    text-align: center;
+    margin-bottom: 10px;
+  }
+
+  .admin-message {
+    color: #ff5252;
+    font-weight: bold;
+    min-height: 1.2em;
+  }
+</style>
+</head>
+<body>
+  <h1>🌈 Draw a Perfect Circle!</h1>
+  <p>Draw around the red dot — one attempt per round!</p>
+
+  <div class="main-container">
+    <!-- Centered Drawing Section -->
+    <div class="canvas-section">
+      <canvas id="canvas" width="400" height="400"></canvas>
+      <div id="score">Your Circle Score: 0/100 🎯</div>
+      <div id="highScores">
+        🏆 Highest Score Ever: <span id="highestEver">0</span><br>
+        📅 Best Score This Week: <span id="bestWeek">0</span>
+      </div>
+      <button onclick="clearCanvas()">Try Again</button>
+    </div>
+
+    <!-- Right-Aligned Admin Command -->
+    <div class="admin-container">
+      <div class="admin-box">
+        <h2>Admin Command</h2>
+        <input type="text" id="adminInput" placeholder="Enter secret code">
+        <div class="admin-message" id="adminMessage"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+let drawing = false;
+let points = [];
+let hue = 0;
+let lineWidth = 1;
+let canDraw = true;
+
+// Center of canvas
+const centerX = canvas.width / 2;
+const centerY = canvas.height / 2;
+
+// LocalStorage keys
+const HIGH_SCORE_KEY = "perfectCircle_highestEver";
+const WEEKLY_SCORE_KEY = "perfectCircle_weeklyBest";
+const WEEKLY_RESET_KEY = "perfectCircle_weeklyResetDate";
+
+// Load stored scores
+let highestEver = parseFloat(localStorage.getItem(HIGH_SCORE_KEY)) || 0;
+let bestWeek = parseFloat(localStorage.getItem(WEEKLY_SCORE_KEY)) || 0;
+let lastReset = parseInt(localStorage.getItem(WEEKLY_RESET_KEY)) || Date.now();
+
+// Weekly reset (every 7 days)
+function checkWeeklyReset() {
+  const oneWeek = 7 * 24 * 60 * 60 * 1000;
+  if (Date.now() - lastReset > oneWeek) {
+    bestWeek = 0;
+    lastReset = Date.now();
+    localStorage.setItem(WEEKLY_SCORE_KEY, bestWeek);
+    localStorage.setItem(WEEKLY_RESET_KEY, lastReset);
+  }
+}
+checkWeeklyReset();
+
+document.getElementById("highestEver").innerText = highestEver;
+document.getElementById("bestWeek").innerText = bestWeek;
+
+// Draw red center dot
+function drawCenter() {
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, 4, 0, Math.PI * 2);
+  ctx.fillStyle = "red";
+  ctx.fill();
+}
+drawCenter();
+
+// Start drawing
+canvas.addEventListener("mousedown", () => {
+  if (!canDraw) return;
+  drawing = true;
+  points = [];
+  hue = 0;
+  lineWidth = 1;
+  ctx.beginPath();
+});
+
+// Stop drawing and lock
+canvas.addEventListener("mouseup", () => {
+  if (!canDraw) return;
+  drawing = false;
+  ctx.closePath();
+  canDraw = false;
+});
+
+// Draw rainbow line
+canvas.addEventListener("mousemove", (e) => {
+  if (!drawing || !canDraw) return;
+
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  points.push({ x, y });
+
+  if (lineWidth < 10) lineWidth += 0.05;
+
+  if (points.length > 1) {
+    const prev = points[points.length - 2];
+    ctx.lineWidth = lineWidth;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = `hsl(${hue}, 100%, 50%)`;
+    hue = (hue + 3) % 360;
+
+    ctx.beginPath();
+    ctx.moveTo(prev.x, prev.y);
+    ctx.lineTo(x, y);
+    ctx.stroke();
+  }
+
+  if (points.length > 10) updateScore();
+});
+
+// Calculate score
+function updateScore() {
+  let radii = points.map(p => Math.hypot(p.x - centerX, p.y - centerY));
+  const avgRadius = radii.reduce((a, b) => a + b) / radii.length;
+  const variance = radii.reduce((a, r) => a + Math.pow(r - avgRadius, 2), 0) / radii.length;
+  const stdDev = Math.sqrt(variance);
+
+  let score = Math.max(0, 100 - stdDev * 2);
+  score = Math.min(100, score.toFixed(1));
+
+  displayScore(score);
+}
+
+// Update UI and records
+function displayScore(score) {
+  document.getElementById("score").innerText = `Your Circle Score: ${score}/100 🎯`;
+
+  if (score > highestEver) {
+    highestEver = score;
+    localStorage.setItem(HIGH_SCORE_KEY, highestEver);
+  }
+  if (score > bestWeek) {
+    bestWeek = score;
+    localStorage.setItem(WEEKLY_SCORE_KEY, bestWeek);
+  }
+
+  document.getElementById("highestEver").innerText = highestEver;
+  document.getElementById("bestWeek").innerText = bestWeek;
+}
+
+// Reset canvas
+function clearCanvas() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  document.getElementById("score").innerText = "Your Circle Score: 0/100 🎯";
+  drawCenter();
+  canDraw = true;
+  document.getElementById("adminMessage").innerText = "";
+  document.getElementById("adminInput").value = "";
+}
+
+// Admin Command
+const adminInput = document.getElementById("adminInput");
+const adminMessage = document.getElementById("adminMessage");
+
+adminInput.addEventListener("change", () => {
+  const code = adminInput.value.trim();
+  if (code === "Perfect-Win-Cool-Circle") {
+    adminMessage.style.color = "#00e676";
+    adminMessage.innerText = "Perfect Circle Generated! 🎉";
+    drawPerfectCircle();
+    displayScore(100);
+  } else {
+    adminMessage.style.color = "#ff5252";
+    adminMessage.innerText = "Invalid code ❌";
+    // Auto-reset input and message after 1.2 seconds
+    setTimeout(() => {
+      adminInput.value = "";
+      adminMessage.innerText = "";
+    }, 1200);
+  }
+});
+
+// Draw perfect circle
+function drawPerfectCircle() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawCenter();
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, 120, 0, Math.PI * 2);
+  const gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
+  gradient.addColorStop(0, "red");
+  gradient.addColorStop(0.2, "orange");
+  gradient.addColorStop(0.4, "yellow");
+  gradient.addColorStop(0.6, "green");
+  gradient.addColorStop(0.8, "blue");
+  gradient.addColorStop(1, "violet");
+  ctx.lineWidth = 6;
+  ctx.strokeStyle = gradient;
+  ctx.stroke();
+  canDraw = false;
+}
+</script>
+</body>
+</html>
+
+
+
+
+
+
+
+
